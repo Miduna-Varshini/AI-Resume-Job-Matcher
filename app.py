@@ -21,7 +21,13 @@ def load_nlp():
     return spacy.load("en_core_web_sm")
 
 nlp = load_nlp()
-stop_words = set(stopwords.words("english"))
+@st.cache_resource
+def load_stopwords():
+    nltk.download("stopwords")
+    return set(stopwords.words("english"))
+
+stop_words = load_stopwords()
+
 
 # ----------------------------
 # Helper functions
