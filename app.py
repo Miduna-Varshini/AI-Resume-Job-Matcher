@@ -1,5 +1,4 @@
 import streamlit as st
-import spacy
 import re
 import nltk
 from PyPDF2 import PdfReader
@@ -17,18 +16,13 @@ st.set_page_config(
 st.title("📄 AI-Based Resume–Job Matching & Skill Gap Analyzer")
 
 # ----------------------------
-# Load NLP resources (CLOUD SAFE)
+# Load stopwords safely
 # ----------------------------
-@st.cache_resource
-def load_nlp():
-    return spacy.load("en_core_web_sm")
-
 @st.cache_resource
 def load_stopwords():
     nltk.download("stopwords")
     return set(stopwords.words("english"))
 
-nlp = load_nlp()
 stop_words = load_stopwords()
 
 # ----------------------------
@@ -50,12 +44,11 @@ def clean_text(text):
     return " ".join(words)
 
 def extract_skills(text, skill_list):
-    doc = nlp(text)
-    found_skills = set()
-    for token in doc:
-        if token.text.lower() in skill_list:
-            found_skills.add(token.text.lower())
-    return found_skills
+    found = set()
+    for skill in skill_list:
+        if skill in text:
+            found.add(skill)
+    return found
 
 # ----------------------------
 # Skill database
@@ -75,20 +68,15 @@ job_description = st.text_area("Paste Job Description")
 
 if st.button("Analyze Resume"):
     if resume_file is None or job_description.strip() == "":
-        st.warning("Please upload a resume and paste a job description.")
+        st.warning("Please upload resume and job description.")
     else:
         resume_text = extract_text_from_pdf(resume_file)
         resume_clean = clean_text(resume_text)
         job_clean = clean_text(job_description)
 
         vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform([resume_clean, job_clean])
-
-        similarity = cosine_similarity(
-            tfidf_matrix[0:1],
-            tfidf_matrix[1:2]
-        )[0][0]
-
+        tfidf = vectorizer.fit_transform([resume_clean, job_clean])
+        similarity = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
         match_score = round(similarity * 100, 2)
 
         resume_skills = extract_skills(resume_clean, skill_list)
@@ -101,12 +89,13 @@ if st.button("Analyze Resume"):
         st.metric("Resume–Job Match Score", f"{match_score}%")
 
         st.write("### ✅ Matched Skills")
-        st.write(list(matched) if matched else "No matched skills found")
+        st.write(list(matched) if matched else "None")
 
         st.write("### ❌ Missing Skills")
-        st.write(list(missing) if missing else "No missing skills")
+        st.write(list(missing) if missing else "None")
 
         st.info(
             "This system uses NLP-based TF-IDF vectorization and cosine similarity, "
-            "similar to real-world Applicant Tracking Systems (ATS)."
+            "similar to real Applicant Tracking Systems (ATS)."
         )
+        
